@@ -24,6 +24,7 @@
     "morgan": "^1.11.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/mongoose": "^5.11.96",
@@ -34,9 +35,9 @@
     "eslint": "^10.7.0",
     "nodemon": "^3.1.14",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2"
+    "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
