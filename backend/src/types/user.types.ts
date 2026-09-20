@@ -38,6 +38,9 @@ export interface IUser extends Document {
   onboarding: IOnboarding;
   transactionPin: string;
   lastLogin?: Date;
+  // Mongoose timestamps (set by { timestamps: true } in schema options)
+  createdAt: Date;
+  updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
   comparePin(candidatePin: string): Promise<boolean>;
   getMaskedNin(): string | null;
