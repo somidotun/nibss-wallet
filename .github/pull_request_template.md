@@ -42,4 +42,4 @@ This PR ...
 <!-- Add Screenshots or screen recordings of: -->
 
 - The live component/feature worked on
-- Successful linting check (run `pnpm lint` or check commit output)
+- Successful linting check (run `npm lint` or check commit output)
