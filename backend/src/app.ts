@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import AppError from "./utils/AppError.js";
+import userRoutes from "./routes/user.routes.js";
 
 const app: Application = express();
 
@@ -41,6 +42,7 @@ app.get("/api/health", (req: Request, res: Response) => {
 
 // ─── API Routes ──────────────────────────────────────────────────
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {
