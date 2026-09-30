@@ -1,5 +1,10 @@
 import User from "../models/user.model.js";
-import { generateTokenPair, verifyRefreshToken, JwtPayload } from "../utils/jwt.utils.js";
+import Wallet from "../models/wallet.model.js";
+import {
+  generateTokenPair,
+  verifyRefreshToken,
+  JwtPayload,
+} from "../utils/jwt.utils.js";
 import { IUser } from "../types/user.types.js";
 import { Types } from "mongoose";
 
@@ -34,6 +39,14 @@ export const registerUser = async (input: RegisterInput) => {
     email,
     phone,
     password,
+  });
+
+  // Auto-create wallet for new user
+  await Wallet.create({
+    userId: user._id,
+    balance: 50000,
+    currency: "NGN",
+    dailyTransferLimit: 50000, // Tier 1 limit
   });
 
   // Generate tokens

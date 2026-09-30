@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import AppError from "./utils/AppError.js";
 import userRoutes from "./routes/user.routes.js";
+import walletRoutes from "./routes/wallet.routes.js";
 
 const app: Application = express();
 
@@ -43,6 +44,7 @@ app.get("/api/health", (req: Request, res: Response) => {
 // ─── API Routes ──────────────────────────────────────────────────
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/wallet", walletRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {

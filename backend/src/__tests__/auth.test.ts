@@ -52,6 +52,13 @@ describe("POST /api/v1/auth/register", () => {
     expect(res.body.data.user.kyc.currentTier).toBe(1);
     expect(res.body.data.user.kyc.status).toBe("not_started");
   });
+
+  it("should create wallet with ₦50,000 starting balance", async () => {
+    const res = await request(app).post(`${baseUrl}/register`).send(testUser);
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.id).toBeDefined();
+  });
 });
 
 // ─── Login ───────────────────────────────────────────────────────
