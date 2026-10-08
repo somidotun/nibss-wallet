@@ -3,6 +3,7 @@ import {
   getCurrentUser,
   updateProfile,
   changePassword,
+  setPin,
 } from "../services/user.service.js";
 
 // ─── Get Current User ─────────────────────────────────────────────
@@ -92,6 +93,24 @@ export const updatePassword = async (
     res.status(200).json({
       status: "success",
       message: "Password changed successfully. Please login again.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setTransactionPin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { pin } = req.body;
+    await setPin(req.user!.userId, pin);
+
+    res.status(200).json({
+      status: "success",
+      message: "Transaction PIN set successfully",
     });
   } catch (error) {
     next(error);

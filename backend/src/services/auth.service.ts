@@ -7,6 +7,7 @@ import {
 } from "../utils/jwt.utils.js";
 import { IUser } from "../types/user.types.js";
 import { Types } from "mongoose";
+import { generateAccountNumber } from "../utils/accountNumber.utils.js";
 
 // ─── Register ────────────────────────────────────────────────────
 export interface RegisterInput {
@@ -41,9 +42,12 @@ export const registerUser = async (input: RegisterInput) => {
     password,
   });
 
+  const accountNumber = await generateAccountNumber();
+
   // Auto-create wallet for new user
   await Wallet.create({
     userId: user._id,
+    accountNumber,
     balance: 50000,
     currency: "NGN",
     dailyTransferLimit: 50000, // Tier 1 limit

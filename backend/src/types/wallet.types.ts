@@ -5,6 +5,7 @@ export type WalletCurrency = "NGN";
 
 export interface IWallet extends Document {
   userId: Types.ObjectId;
+  accountNumber: string;
   balance: number;
   currency: WalletCurrency;
   status: WalletStatus;

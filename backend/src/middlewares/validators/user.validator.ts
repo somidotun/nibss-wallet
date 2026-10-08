@@ -47,3 +47,13 @@ export const changePasswordValidator = [
     .matches(/[!@#$%^&*(),.?":{}|<>]/)
     .withMessage("Password must contain at least one special character"),
 ];
+
+export const setTransactionPinValidator = [
+  body("pin")
+    .notEmpty()
+    .withMessage("PIN is required")
+    .isLength({ min: 4, max: 4 })
+    .withMessage("PIN must be exactly 4 digits")
+    .isNumeric()
+    .withMessage("PIN must contain only numbers"),
+];

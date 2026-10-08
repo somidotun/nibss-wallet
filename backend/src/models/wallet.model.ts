@@ -9,6 +9,11 @@ const WalletSchema = new Schema<IWallet>(
       required: true,
       unique: true, // one wallet per user
     },
+    accountNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     balance: {
       type: Number,
       default: 0,
@@ -44,6 +49,7 @@ const WalletSchema = new Schema<IWallet>(
 
 // Index for fast lookup by userId
 WalletSchema.index({ userId: 1 });
+WalletSchema.index({ accountNumber: 1 });
 
 const Wallet = mongoose.model<IWallet>("Wallet", WalletSchema);
 export default Wallet;
