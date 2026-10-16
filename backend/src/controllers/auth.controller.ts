@@ -5,7 +5,6 @@ import {
   refreshUserToken,
 } from "../services/auth.service.js";
 
-
 // ─── Register ────────────────────────────────────────────────────
 export const register = async (
   req: Request,
