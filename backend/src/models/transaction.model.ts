@@ -89,8 +89,6 @@ const TransactionSchema = new Schema<ITransaction>(
 // Indexes for fast queries
 TransactionSchema.index({ senderId: 1, createdAt: -1 });
 TransactionSchema.index({ receiverId: 1, createdAt: -1 });
-TransactionSchema.index({ reference: 1 });
-TransactionSchema.index({ idempotencyKey: 1 });
 
 const Transaction = mongoose.model<ITransaction>(
   "Transaction",
