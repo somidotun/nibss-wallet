@@ -5,6 +5,11 @@ import {
   refreshUserToken,
 } from "../services/auth.service.js";
 
+import {
+  verifyEmail,
+  resendVerificationOTP,
+} from "../services/auth.service.js";
+
 // ─── Register ────────────────────────────────────────────────────
 export const register = async (
   req: Request,
@@ -114,6 +119,16 @@ export const login = async (
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
+      // ─── Email Not Verified ──────────────────────────────────────
+      if (error.message === "EMAIL_NOT_VERIFIED") {
+        res.status(403).json({
+          status: "error",
+          message: "Please verify your email address before logging in",
+        });
+        return;
+      }
+
+      // ─── Invalid Credentials ─────────────────────────────────────
       if (error.message === "INVALID_CREDENTIALS") {
         res.status(401).json({
           status: "error",
@@ -121,6 +136,8 @@ export const login = async (
         });
         return;
       }
+
+      // ─── Account Frozen ──────────────────────────────────────────
       if (error.message === "ACCOUNT_FROZEN") {
         res.status(403).json({
           status: "error",
@@ -128,6 +145,8 @@ export const login = async (
         });
         return;
       }
+
+      // ─── Account Suspended ───────────────────────────────────────
       if (error.message === "ACCOUNT_SUSPENDED") {
         res.status(403).json({
           status: "error",
@@ -203,6 +222,50 @@ export const refreshToken = async (
         return;
       }
     }
+    next(error);
+  }
+};
+
+// ─── Verify Email ─────────────────────────────────────────────────
+export const verifyEmailOTP = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { otp } = req.body;
+    const user = await verifyEmail(req.user!.userId, otp);
+
+    res.status(200).json({
+      status: "success",
+      message: "Email verified successfully",
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          isEmailVerified: user.isEmailVerified,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Resend OTP ───────────────────────────────────────────────────
+export const resendOTP = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    await resendVerificationOTP(req.user!.userId);
+
+    res.status(200).json({
+      status: "success",
+      message: "Verification email sent successfully",
+    });
+  } catch (error) {
     next(error);
   }
 };

@@ -89,7 +89,11 @@ const UserSchema = new Schema<IUser>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         validator: function (this: any, value: string) {
           // validate before hashing — only on raw input
-          if (this && typeof this.isModified === "function" && this.isModified("transactionPin")) {
+          if (
+            this &&
+            typeof this.isModified === "function" &&
+            this.isModified("transactionPin")
+          ) {
             return /^\d{4}$/.test(value);
           }
           return true;
@@ -98,6 +102,19 @@ const UserSchema = new Schema<IUser>(
       },
     },
     lastLogin: Date,
+    // email verification
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationOTP: {
+      type: String,
+      select: false,
+    },
+    emailVerificationOTPExpiry: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
