@@ -7,6 +7,7 @@ process.env.JWT_ACCESS_SECRET = "test-access-secret-key";
 process.env.JWT_REFRESH_SECRET = "test-refresh-secret-key";
 process.env.JWT_ACCESS_EXPIRES_IN = "15m";
 process.env.JWT_REFRESH_EXPIRES_IN = "7d";
+process.env.RESEND_API_KEY = "re_test_dummy_key";
 
 let mongoServer: MongoMemoryServer;
 

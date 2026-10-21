@@ -45,4 +45,7 @@ export interface IUser extends Document {
   comparePin(candidatePin: string): Promise<boolean>;
   getMaskedNin(): string | null;
   getMaskedBvn(): string | null;
+  isEmailVerified: boolean;
+  emailVerificationOTP?: string;
+  emailVerificationOTPExpiry?: Date;
 }
