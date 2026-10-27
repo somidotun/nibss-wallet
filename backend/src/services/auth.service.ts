@@ -54,17 +54,6 @@ export const registerUser = async (input: RegisterInput) => {
   // Send verification email
   await sendVerificationEmail(email, firstName, otp);
 
-  const accountNumber = await generateAccountNumber();
-
-  // Auto-create wallet for new user
-  await Wallet.create({
-    userId: user._id,
-    accountNumber,
-    balance: 50000,
-    currency: "NGN",
-    dailyTransferLimit: 50000, // Tier 1 limit
-  });
-
   // Generate tokens
   const payload: JwtPayload = {
     userId: (user._id as Types.ObjectId).toString(),
@@ -181,6 +170,18 @@ export const verifyEmail = async (userId: string, otp: string) => {
   user.emailVerificationOTPExpiry = undefined;
   user.status = "active";
   await user.save();
+
+  // create a wallet for the user
+  const accountNumber = await generateAccountNumber();
+
+  // Auto-create wallet for new user
+  await Wallet.create({
+    userId: user._id,
+    accountNumber,
+    balance: 50000,
+    currency: "NGN",
+    dailyTransferLimit: 50000, // Tier 1 limit
+  });
 
   return user;
 };
