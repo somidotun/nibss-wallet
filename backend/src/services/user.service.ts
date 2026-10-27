@@ -99,3 +99,14 @@ export const changePassword = async (
 
   return user;
 };
+
+export const setPin = async (userId: string, pin: string) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("User not found", 404);
+
+  user.transactionPin = pin;
+  user.onboarding.steps.pin = true;
+  await user.save();
+
+  return user;
+};

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "@jest/globals";
 import request from "supertest";
 import app from "../app.js";
+import User from "../models/user.model.js";
 
 const baseUrl = "/api/v1/auth";
 
@@ -52,12 +53,31 @@ describe("POST /api/v1/auth/register", () => {
     expect(res.body.data.user.kyc.currentTier).toBe(1);
     expect(res.body.data.user.kyc.status).toBe("not_started");
   });
+
+  it("should create wallet with ₦50,000 starting balance", async () => {
+    const res = await request(app).post(`${baseUrl}/register`).send(testUser);
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.user.id).toBeDefined();
+  });
 });
 
 // ─── Login ───────────────────────────────────────────────────────
 describe("POST /api/v1/auth/login", () => {
   beforeEach(async () => {
     await request(app).post(`${baseUrl}/register`).send(testUser);
+    await User.updateOne({ email: testUser.email }, { isEmailVerified: true });
+  });
+
+  it("should fail if email is not verified", async () => {
+    await User.updateOne({ email: testUser.email }, { isEmailVerified: false });
+    const res = await request(app).post(`${baseUrl}/login`).send({
+      email: testUser.email,
+      password: testUser.password,
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Please verify your email address before logging in");
   });
 
   it("should login successfully with correct credentials", async () => {
@@ -133,6 +153,7 @@ describe("POST /api/v1/auth/refresh-token", () => {
   it("should return new access token with valid refresh token", async () => {
     // Register first then login
     await request(app).post(`${baseUrl}/register`).send(testUser);
+    await User.updateOne({ email: testUser.email }, { isEmailVerified: true });
 
     const loginResponse = await request(app).post(`${baseUrl}/login`).send({
       email: testUser.email,

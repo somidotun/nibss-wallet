@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "pdfkit": "^0.20.2",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.17.6",
+    "@types/uuid": "^10.0.0"
+  }
+}
