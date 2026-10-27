@@ -9,6 +9,7 @@ import AppError from "./utils/AppError.js";
 import userRoutes from "./routes/user.routes.js";
 import walletRoutes from "./routes/wallet.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
+import kycRoutes from "./routes/kyc.routes.js";
 
 const app: Application = express();
 
@@ -47,6 +48,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/wallet", walletRoutes);
 app.use("/api/v1/transactions", transactionRoutes);
+app.use("/api/v1/kyc", kycRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {
