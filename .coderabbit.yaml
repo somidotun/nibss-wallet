@@ -1,18 +1,11 @@
-version: "2"
+language: "en-US"
 
 reviews:
-  enabled: true
+  profile: "assertive"
   auto_review:
     enabled: true
     base_branches:
       - "dev"
-
-path_filters:
-  - "!dev"
-  - "!staging"
-  - "!production"
-
-review_profile: assertive
 
 chat:
   auto_reply: true
