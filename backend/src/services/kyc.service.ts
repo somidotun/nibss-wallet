@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Wallet from "../models/wallet.model.js";
 import AppError from "../utils/AppError.js";
+import { createNotification } from "./notification.service.js";
 
 export interface SubmitKycInput {
   nin: string;
@@ -38,6 +39,13 @@ export const submitKyc = async (userId: string, input: SubmitKycInput) => {
   user.onboarding.steps.kyc = true;
 
   await user.save();
+
+  await createNotification({
+    userId: user._id,
+    type: "kyc_submitted",
+    title: "KYC submitted",
+    message: "Your documents are under review.",
+  });
   return user;
 };
 
@@ -91,5 +99,22 @@ export const reviewKyc = async (
   }
 
   await user.save();
+
+  await createNotification(
+    decision === "approve"
+      ? {
+          userId: user._id,
+          type: "kyc_approved",
+          title: "KYC approved",
+          message: `You are now Tier ${user.kyc.currentTier}. Your daily limit has increased.`,
+        }
+      : {
+          userId: user._id,
+          type: "kyc_rejected",
+          title: "KYC rejected",
+          message:
+            user.kyc.rejectionReason ?? "Your KYC could not be verified.",
+        },
+  );
   return user;
 };

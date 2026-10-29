@@ -10,6 +10,7 @@ import { Types } from "mongoose";
 import { generateAccountNumber } from "../utils/accountNumber.utils.js";
 import { sendVerificationEmail, generateOTP } from "../utils/email.utils.js";
 import AppError from "../utils/AppError.js";
+import { createNotification } from "./notification.service.js";
 
 // ─── Register ────────────────────────────────────────────────────
 export interface RegisterInput {
@@ -181,6 +182,13 @@ export const verifyEmail = async (userId: string, otp: string) => {
     balance: 50000,
     currency: "NGN",
     dailyTransferLimit: 50000, // Tier 1 limit
+  });
+
+  await createNotification({
+    userId: user._id,
+    type: "welcome",
+    title: "Welcome to Nibss Wallet",
+    message: "Your email is verified and your wallet is ready with ₦50,000.",
   });
 
   return user;
