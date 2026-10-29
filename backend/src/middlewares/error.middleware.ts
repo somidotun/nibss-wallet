@@ -3,7 +3,7 @@ import AppError from "../utils/AppError.js";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
-// ─── Error shape for raw MongoDB / JWT errors ─────────────────────
+// ─── Error shape for raw MongoDB / JWT / body-parser errors ───────
 type RawError = Error & {
   statusCode?: number;
   status?: string;
@@ -11,6 +11,7 @@ type RawError = Error & {
   code?: number;
   keyValue?: Record<string, unknown>;
   errors?: Record<string, { message: string }>;
+  type?: string;
 };
 
 // ─── Handle specific MongoDB/JWT errors ──────────────────────────
@@ -91,6 +92,8 @@ const errorHandler = (
   else if (err.name === "ValidationError") error = handleValidationError(err);
   else if (err.name === "JsonWebTokenError") error = handleJWTError();
   else if (err.name === "TokenExpiredError") error = handleJWTExpiredError();
+  else if (err.type === "entity.parse.failed")
+    error = new AppError("Invalid JSON body", 400);
   else error = new AppError(err.message || "Something went wrong", 500);
 
   sendErrorProd(error, res);

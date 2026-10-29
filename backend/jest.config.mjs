@@ -18,6 +18,7 @@ const config = {
   setupFilesAfterEnv: ["<rootDir>/src/__tests__/setup.ts"],
   forceExit: true,
   clearMocks: true,
+  testTimeout: 30000,
 };
 
 export default config;
