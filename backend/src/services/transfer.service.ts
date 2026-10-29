@@ -4,7 +4,7 @@ import Wallet from "../models/wallet.model.js";
 import Transaction from "../models/transaction.model.js";
 import User from "../models/user.model.js";
 import AppError from "../utils/AppError.js";
-import { generateTransactionReceipt } from "../utils/receipt.utils.js";
+import { createNotification } from "./notification.service.js";
 
 export interface TransferInput {
   senderId: string;
@@ -15,7 +15,7 @@ export interface TransferInput {
   pin: string;
 }
 
-export const transferFunds = async (input: TransferInput) => {
+const executeTransfer = async (input: TransferInput) => {
   const { senderId, accountNumber, amount, description, idempotencyKey, pin } =
     input;
 
@@ -164,15 +164,70 @@ export const transferFunds = async (input: TransferInput) => {
   const senderFullName = `${sender.firstName} ${sender.lastName}`;
   const receiverFullName = `${recipient.firstName} ${recipient.lastName}`;
 
-  const receiptBuffer = await generateTransactionReceipt(
-    debitTransaction!,
-    senderFullName,
-    receiverFullName,
-  );
+  await Promise.all([
+    createNotification({
+      userId: sender._id,
+      type: "transfer_sent",
+      title: "Money sent",
+      message: `You sent ₦${amount.toLocaleString()} to ${receiverFullName}`,
+      metadata: { reference: debitTransaction!.reference, amount },
+    }),
+    createNotification({
+      userId: recipient._id,
+      type: "transfer_received",
+      title: "Money received",
+      message: `You received ₦${amount.toLocaleString()} from ${senderFullName}`,
+      metadata: { reference: debitTransaction!.reference, amount },
+    }),
+  ]);
 
   return {
     transaction: debitTransaction,
-    receipt: receiptBuffer,
     isDuplicate: false,
   };
+};
+
+const notifyTransferFailure = async (
+  senderId: string,
+  amount: number,
+  error: unknown,
+): Promise<void> => {
+  // Nobody to notify if the sender account itself is missing
+  if (error instanceof AppError && error.message === "Sender not found") return;
+
+  const isPinFailure =
+    error instanceof AppError && error.message === "Invalid transaction PIN";
+
+  // Only operational errors are safe to show; anything else stays generic
+  const reason =
+    error instanceof AppError && error.isOperational
+      ? error.message
+      : "A system error occurred";
+
+  await createNotification(
+    isPinFailure
+      ? {
+          userId: senderId,
+          type: "security_alert",
+          title: "Incorrect transaction PIN",
+          message: `A transfer of ₦${amount.toLocaleString()} was attempted with an incorrect PIN.`,
+          metadata: { amount },
+        }
+      : {
+          userId: senderId,
+          type: "transfer_failed",
+          title: "Transfer failed",
+          message: `Your transfer of ₦${amount.toLocaleString()} did not go through: ${reason}. No money was deducted.`,
+          metadata: { amount, reason },
+        },
+  );
+};
+
+export const transferFunds = async (input: TransferInput) => {
+  try {
+    return await executeTransfer(input);
+  } catch (error) {
+    await notifyTransferFailure(input.senderId, input.amount, error);
+    throw error;
+  }
 };
