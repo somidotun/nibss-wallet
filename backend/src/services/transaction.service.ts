@@ -26,13 +26,23 @@ export const getUserTransactions = async (
     endDate,
   } = query;
 
-  const filter: Record<string, unknown> = {
-    $or: [{ senderId: userId }, { receiverId: userId }],
-  };
+  const filter: Record<string, unknown> = {};
+
+  if (direction === "debit") {
+    filter.senderId = userId;
+    filter.direction = "debit";
+  } else if (direction === "credit") {
+    filter.receiverId = userId;
+    filter.direction = "credit";
+  } else {
+    filter.$or = [
+      { senderId: userId, direction: "debit" },
+      { receiverId: userId, direction: "credit" },
+    ];
+  }
 
   if (type) filter.type = type;
   if (status) filter.status = status;
-  if (direction) filter.direction = direction;
 
   if (startDate || endDate) {
     filter.createdAt = {};

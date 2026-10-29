@@ -40,7 +40,7 @@ export const updateProfile = async (
   const user = await User.findByIdAndUpdate(
     userId,
     { firstName, lastName, phone },
-    { new: true, runValidators: true },
+    { returnDocument: "after", runValidators: true },
   );
 
   if (!user) {

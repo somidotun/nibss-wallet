@@ -34,11 +34,28 @@ export default [
     rules: {
       ...js.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
+      "no-undef": "off",
       "@typescript-eslint/no-unused-vars": "error",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-function-return-type": "off",
       "no-console": "warn",
       "prefer-const": "error",
+    },
+  },
+  {
+    files: ["src/__tests__/**/*.ts"],
+    languageOptions: {
+      globals: {
+        describe: "readonly",
+        it: "readonly",
+        test: "readonly",
+        expect: "readonly",
+        beforeAll: "readonly",
+        beforeEach: "readonly",
+        afterAll: "readonly",
+        afterEach: "readonly",
+        jest: "readonly",
+      },
     },
   },
 ];

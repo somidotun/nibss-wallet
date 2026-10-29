@@ -1,33 +1,39 @@
-import { beforeAll, afterEach, afterAll } from "@jest/globals";
 import mongoose from "mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 
-// Set required env vars before any test runs
-process.env.JWT_ACCESS_SECRET = "test-access-secret-key";
-process.env.JWT_REFRESH_SECRET = "test-refresh-secret-key";
-process.env.JWT_ACCESS_EXPIRES_IN = "15m";
-process.env.JWT_REFRESH_EXPIRES_IN = "7d";
-process.env.RESEND_API_KEY = "re_test_dummy_key";
-
-let mongoServer: MongoMemoryServer;
-
-// Start in-memory MongoDB before all tests
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const uri = mongoServer.getUri();
-  await mongoose.connect(uri);
+// Fixed test values, so tests never depend on your real .env
+Object.assign(process.env, {
+  JWT_ACCESS_SECRET: "test-access-secret",
+  JWT_REFRESH_SECRET: "test-refresh-secret",
+  JWT_ACCESS_EXPIRES_IN: "15m",
+  JWT_REFRESH_EXPIRES_IN: "7d",
+  ENCRYPTION_KEY: "test-encryption-key-for-jest-only",
+  RESEND_API_KEY: "re_test_key",
+  FROM_EMAIL: "onboarding@resend.dev",
 });
 
-// Clean up all collections after each test
+let replSet: MongoMemoryReplSet;
+
+beforeAll(async () => {
+  // Replica set (not standalone) so session transactions work
+  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  await mongoose.connect(replSet.getUri());
+}, 60000);
+
 afterEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
+  if (mongoose.connection.readyState === 1) {
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+      await collections[key].deleteMany({});
+    }
   }
 });
 
-// Disconnect and stop server after all tests
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+  if (replSet) {
+    await replSet.stop();
+  }
 });
