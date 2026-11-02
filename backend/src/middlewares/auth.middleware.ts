@@ -43,6 +43,18 @@ export const protect = async (
       return;
     }
 
+    if (
+      user.passwordChangedAt &&
+      payload.iat &&
+      user.passwordChangedAt.getTime() > payload.iat * 1000
+    ) {
+      res.status(401).json({
+        status: "error",
+        message: "Password was changed. Please log in again.",
+      });
+      return;
+    }
+
     if (user.status !== "active") {
       res.status(403).json({
         status: "error",

@@ -10,6 +10,8 @@ import { Types } from "mongoose";
 import { generateAccountNumber } from "../utils/accountNumber.utils.js";
 import { sendVerificationEmail, generateOTP } from "../utils/email.utils.js";
 import AppError from "../utils/AppError.js";
+import { generateSecureOtp, hashOtp, safeEqual } from "../utils/otp.utils.js";
+import { sendPasswordResetEmail } from "../utils/email.utils.js";
 import { createNotification } from "./notification.service.js";
 
 // ─── Register ────────────────────────────────────────────────────
@@ -20,6 +22,10 @@ export interface RegisterInput {
   phone: string;
   password: string;
 }
+
+const RESET_TTL_MS = 10 * 60 * 1000;
+const RESET_COOLDOWN_MS = 60 * 1000;
+const MAX_RESET_ATTEMPTS = 5;
 
 export const registerUser = async (input: RegisterInput) => {
   const { firstName, lastName, email, phone, password } = input;
@@ -117,7 +123,7 @@ export const loginUser = async (input: LoginInput) => {
 };
 
 // ─── Refresh Token ───────────────────────────────────────────────
-export const refreshUserToken = async (refreshToken: string) => {
+export const refreshUserToken = async (refreshToken: string, iat?: number) => {
   // Verify the token first — throws if expired or tampered
   const verified = verifyRefreshToken(refreshToken);
 
@@ -129,6 +135,15 @@ export const refreshUserToken = async (refreshToken: string) => {
 
   if (user.status !== "active") {
     throw new Error("ACCOUNT_INACTIVE");
+  }
+
+  const tokenIat = verified.iat ?? iat;
+  if (
+    user.passwordChangedAt &&
+    tokenIat &&
+    user.passwordChangedAt.getTime() > tokenIat * 1000
+  ) {
+    throw new Error("SESSION_INVALID");
   }
 
   const payload: JwtPayload = {
@@ -211,4 +226,88 @@ export const resendVerificationOTP = async (userId: string) => {
   await sendVerificationEmail(user.email, user.firstName, otp);
 
   return user;
+};
+
+// ─── Request a reset code ─────────────────────────────────────────
+// Never reveals whether the email exists: it just returns quietly
+export const requestPasswordReset = async (email: string): Promise<void> => {
+  const user = await User.findOne({ email }).select("+passwordResetExpiry");
+  if (!user || !user.isEmailVerified || user.status !== "active") return;
+
+  // One code per minute per account
+  const issuedAt = user.passwordResetExpiry
+    ? user.passwordResetExpiry.getTime() - RESET_TTL_MS
+    : 0;
+  if (Date.now() - issuedAt < RESET_COOLDOWN_MS) return;
+
+  const otp = generateSecureOtp();
+  user.passwordResetToken = hashOtp(otp);
+  user.passwordResetExpiry = new Date(Date.now() + RESET_TTL_MS);
+  user.passwordResetAttempts = 0;
+  await user.save();
+
+  try {
+    await sendPasswordResetEmail(user.email, user.firstName, otp);
+  } catch (error) {
+    // Do not let an email failure change the response and leak that the account exists
+    console.error(
+      "Password reset email failed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+};
+
+// ─── Reset the password ───────────────────────────────────────────
+export const resetPassword = async (
+  email: string,
+  otp: string,
+  newPassword: string,
+): Promise<void> => {
+  const invalid = () => new AppError("Invalid or expired code", 400);
+
+  const user = await User.findOne({ email }).select(
+    "+password +passwordResetToken +passwordResetExpiry +passwordResetAttempts",
+  );
+  if (!user || !user.passwordResetToken || !user.passwordResetExpiry) {
+    throw invalid();
+  }
+
+  const clearReset = () => {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiry = undefined;
+    user.passwordResetAttempts = 0;
+  };
+
+  const attempts = user.passwordResetAttempts ?? 0;
+  if (user.passwordResetExpiry < new Date() || attempts >= MAX_RESET_ATTEMPTS) {
+    clearReset();
+    await user.save();
+    throw invalid();
+  }
+
+  if (!safeEqual(hashOtp(otp), user.passwordResetToken)) {
+    user.passwordResetAttempts = attempts + 1;
+    if (user.passwordResetAttempts >= MAX_RESET_ATTEMPTS) clearReset();
+    await user.save();
+    throw invalid();
+  }
+
+  if (await user.comparePassword(newPassword)) {
+    throw new AppError(
+      "New password must be different from your current password",
+      400,
+    );
+  }
+
+  user.password = newPassword; // hashed by the pre-save hook
+  clearReset();
+  await user.save();
+
+  await createNotification({
+    userId: user._id,
+    type: "password_changed",
+    title: "Password reset",
+    message:
+      "Your password was reset and all other sessions were signed out. If this was not you, contact support immediately.",
+  });
 };

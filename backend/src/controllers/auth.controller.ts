@@ -3,6 +3,8 @@ import {
   registerUser,
   loginUser,
   refreshUserToken,
+  requestPasswordReset,
+  resetPassword,
 } from "../services/auth.service.js";
 
 import {
@@ -213,7 +215,8 @@ export const refreshToken = async (
     if (error instanceof Error) {
       if (
         error.message === "USER_NOT_FOUND" ||
-        error.message === "ACCOUNT_INACTIVE"
+        error.message === "ACCOUNT_INACTIVE" ||
+        error.message === "SESSION_INVALID"
       ) {
         res.status(401).json({
           status: "error",
@@ -264,6 +267,41 @@ export const resendOTP = async (
     res.status(200).json({
       status: "success",
       message: "Verification email sent successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    await requestPasswordReset(req.body.email);
+    res.status(200).json({
+      status: "success",
+      message:
+        "If an account exists for this email, a reset code has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPasswordController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    await resetPassword(email, otp, newPassword);
+    res.status(200).json({
+      status: "success",
+      message:
+        "Password reset successfully. Please log in with your new password.",
     });
   } catch (error) {
     next(error);
