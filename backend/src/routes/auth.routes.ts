@@ -6,10 +6,14 @@ import {
   refreshToken,
   verifyEmailOTP,
   resendOTP,
+  resetPasswordController,
+  forgotPassword,
 } from "../controllers/auth.controller.js";
 import {
   registerValidator,
   loginValidator,
+  resetPasswordValidator,
+  forgotPasswordValidator,
 } from "../middlewares/validators/auth.validator.js";
 import validate from "../middlewares/validate.middleware.js";
 import { protect } from "../middlewares/auth.middleware.js";
@@ -22,5 +26,17 @@ router.post("/logout", logout);
 router.post("/refresh-token", refreshToken);
 router.post("/verify-email", protect, verifyEmailOTP);
 router.post("/resend-otp", protect, resendOTP);
+router.post(
+  "/forgot-password",
+  forgotPasswordValidator,
+  validate,
+  forgotPassword,
+);
+router.post(
+  "/reset-password",
+  resetPasswordValidator,
+  validate,
+  resetPasswordController,
+);
 
 export default router;

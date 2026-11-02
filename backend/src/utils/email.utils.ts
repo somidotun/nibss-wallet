@@ -58,6 +58,43 @@ export const sendVerificationEmail = async (
   }
 };
 
+export const sendPasswordResetEmail = async (
+  email: string,
+  firstName: string,
+  otp: string,
+): Promise<void> => {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn(
+      "?? RESEND_API_KEY is missing in environment variables. Password reset email not sent.",
+    );
+    return;
+  }
+
+  const { error } = await resend.emails.send({
+    from: process.env.FROM_EMAIL || "onboarding@resend.dev",
+    to: email,
+    subject: "Reset your Nibss Wallet password",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Reset your password</h2>
+        <p>Hi ${firstName},</p>
+        <p>Use this code to reset your password:</p>
+        <div style="background: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0;">
+          <h1 style="font-size: 36px; letter-spacing: 8px; margin: 0;">${otp}</h1>
+        </div>
+        <p>It expires in <strong>10 minutes</strong>. If you did not request this, ignore this email and your password stays the same.</p>
+      </div>
+    `,
+  });
+
+  if (error) throw new Error(`Failed to send email: ${error.message}`);
+};
+
 export const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };

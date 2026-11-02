@@ -48,4 +48,8 @@ export interface IUser extends Document {
   isEmailVerified: boolean;
   emailVerificationOTP?: string;
   emailVerificationOTPExpiry?: Date;
+  passwordChangedAt?: Date;
+  passwordResetToken?: string;
+  passwordResetExpiry?: Date;
+  passwordResetAttempts?: number;
 }

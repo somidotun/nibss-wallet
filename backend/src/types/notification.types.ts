@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPES = [
   "kyc_rejected",
   "account_frozen",
   "account_unfrozen",
+  "password_changed",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

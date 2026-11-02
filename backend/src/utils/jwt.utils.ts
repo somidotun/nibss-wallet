@@ -4,6 +4,8 @@ import type { StringValue } from "ms";
 export interface JwtPayload {
   userId: string;
   role: "user" | "admin";
+  iat?: number;
+  exp?: number;
 }
 
 export interface TokenPair {

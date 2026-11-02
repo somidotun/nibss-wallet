@@ -115,6 +115,10 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       select: false,
     },
+    passwordChangedAt: Date,
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpiry: { type: Date, select: false },
+    passwordResetAttempts: { type: Number, default: 0, select: false },
   },
   {
     timestamps: true,
@@ -125,6 +129,9 @@ const UserSchema = new Schema<IUser>(
 UserSchema.pre("save", async function (this: IUser) {
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
+  if (!this.isNew) {
+    this.passwordChangedAt = new Date(Date.now() - 1000);
+  }
 });
 
 // ─── Pre-save: Hash Transaction PIN ──────────────────────────────
@@ -172,6 +179,7 @@ UserSchema.methods.comparePin = async function (
 ): Promise<boolean> {
   return bcrypt.compare(candidatePin, this.transactionPin);
 };
+
 
 // Returns masked NIN — decrypts only to get last 4 digits
 UserSchema.methods.getMaskedNin = function (): string | null {
