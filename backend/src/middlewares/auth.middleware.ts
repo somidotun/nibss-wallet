@@ -66,7 +66,7 @@ export const protect = async (
     // 4. Attach user to request
     req.user = {
       userId: payload.userId,
-      role: payload.role,
+      role: user.role,
       status: user.status,
     };
 
