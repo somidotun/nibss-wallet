@@ -180,7 +180,6 @@ UserSchema.methods.comparePin = async function (
   return bcrypt.compare(candidatePin, this.transactionPin);
 };
 
-
 // Returns masked NIN — decrypts only to get last 4 digits
 UserSchema.methods.getMaskedNin = function (): string | null {
   if (!this.kyc?.nin) return null;
@@ -202,6 +201,14 @@ UserSchema.methods.getMaskedBvn = function (): string | null {
     return null;
   }
 };
+
+// Keep onboarding.isComplete in sync, whichever step finishes last
+UserSchema.pre("save", function () {
+  const { profile, kyc, pin } = this.onboarding.steps;
+  this.onboarding.isComplete = Boolean(
+    this.isEmailVerified && profile && kyc && pin,
+  );
+});
 
 const User = mongoose.model<IUser>("User", UserSchema);
 export default User;
