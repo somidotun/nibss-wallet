@@ -12,6 +12,7 @@ import transactionRoutes from "./routes/transaction.routes.js";
 import kycRoutes from "./routes/kyc.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import onboardingRoutes from "./routes/onboarding.routes.js";
+import feedbackRoutes from "./routes/feedback.routes.js";
 
 const app: Application = express();
 
@@ -53,6 +54,7 @@ app.use("/api/v1/transactions", transactionRoutes);
 app.use("/api/v1/kyc", kycRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/onboarding", onboardingRoutes);
+app.use("/api/v1/feedback", feedbackRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {
