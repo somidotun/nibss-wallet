@@ -29,7 +29,12 @@ export const transferValidator = [
     .isNumeric()
     .withMessage("PIN must contain only numbers"),
 
-  body("idempotencyKey").notEmpty().withMessage("Idempotency key is required"),
+  body("idempotencyKey")
+    .isString()
+    .withMessage("Idempotency key must be a string")
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("Idempotency key must be 1 to 100 characters"),
 
   body("description")
     .optional()

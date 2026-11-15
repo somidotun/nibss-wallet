@@ -16,8 +16,10 @@ export interface TransferInput {
 }
 
 const executeTransfer = async (input: TransferInput) => {
-  const { senderId, accountNumber, amount, description, idempotencyKey, pin } =
-    input;
+  const { senderId, accountNumber, amount, description, pin } = input;
+
+  // Namespaced by sender, so keys can never collide across users
+  const idempotencyKey = `${senderId}:${input.idempotencyKey}`;
 
   // ─── 1. Check idempotency ─────────────────────────────────
   const existingTransaction = await Transaction.findOne({ idempotencyKey });
