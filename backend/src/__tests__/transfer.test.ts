@@ -129,6 +129,37 @@ describe("POST /wallet/transfer", () => {
     });
     expect(wallet!.dailyTransferUsed).toBe(5000);
   });
+
+  it("keeps idempotency keys separate per user", async () => {
+    const other = await createVerifiedUser();
+    await setPin(other.token);
+
+    const first = await transfer(sender, receiver, 5000, {
+      idempotencyKey: "shared-key",
+    });
+    const second = await transfer(other, receiver, 3000, {
+      idempotencyKey: "shared-key",
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.message).toBe("Transfer successful");
+    expect(second.body.data.transaction.reference).not.toBe(
+      first.body.data.transaction.reference,
+    );
+    expect(await balanceOf(other)).toBe(47000);
+  });
+
+  it("rejects an operator object as the idempotency key", async () => {
+    await transfer(sender, receiver, 5000, { idempotencyKey: "victim-key" });
+    const attacker = await createVerifiedUser();
+    await setPin(attacker.token);
+
+    const res = await transfer(attacker, receiver, 100, {
+      idempotencyKey: { $ne: "" },
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /wallet/transactions/:id/receipt", () => {
