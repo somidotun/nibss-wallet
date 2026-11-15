@@ -91,3 +91,9 @@ export const balanceOf = async (user: TestUser): Promise<number> => {
     .set(authHeader(user.token));
   return res.body.data.balance;
 };
+
+export const createAdmin = async (): Promise<TestUser> => {
+  const admin = await createVerifiedUser();
+  await User.updateOne({ _id: admin.id }, { role: "admin" });
+  return admin;
+};
