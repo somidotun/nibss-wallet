@@ -19,6 +19,7 @@ const config = {
   forceExit: true,
   clearMocks: true,
   testTimeout: 30000,
+  maxWorkers: "50%",
 };
 
 export default config;

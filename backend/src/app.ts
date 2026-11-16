@@ -14,6 +14,8 @@ import notificationRoutes from "./routes/notification.routes.js";
 import onboardingRoutes from "./routes/onboarding.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
+import { rejectUnsafeKeys } from "./middlewares/sanitize.middleware.js";
 
 const app: Application = express();
 
@@ -29,11 +31,13 @@ app.use(
 );
 
 // Parse incoming JSON requests
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 
 // Cookie parser middleware
 app.use(cookieParser());
+
+app.use(rejectUnsafeKeys);
 
 // HTTP request logger
 app.use(morgan("dev"));
@@ -46,6 +50,8 @@ app.get("/api/health", (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use("/api/v1", globalLimiter);
 
 // ─── API Routes ──────────────────────────────────────────────────
 app.use("/api/v1/auth", authRoutes);
