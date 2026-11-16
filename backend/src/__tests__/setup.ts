@@ -16,7 +16,10 @@ let replSet: MongoMemoryReplSet;
 
 beforeAll(async () => {
   // Replica set (not standalone) so session transactions work
-  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  replSet = await MongoMemoryReplSet.create({
+    replSet: { count: 1 },
+    instanceOpts: [{ launchTimeout: 60000 }],
+  });
   await mongoose.connect(replSet.getUri());
 }, 60000);
 

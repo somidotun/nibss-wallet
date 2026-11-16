@@ -94,6 +94,8 @@ const errorHandler = (
   else if (err.name === "TokenExpiredError") error = handleJWTExpiredError();
   else if (err.type === "entity.parse.failed")
     error = new AppError("Invalid JSON body", 400);
+  else if (err.type === "entity.too.large")
+    error = new AppError("Request body too large", 413);
   else error = new AppError(err.message || "Something went wrong", 500);
 
   sendErrorProd(error, res);
