@@ -13,7 +13,7 @@ const USER_STATUSES = ["active", "suspended", "frozen"];
 const ROLES = ["user", "admin"];
 const KYC_STATUSES = ["not_started", "pending", "verified", "rejected"];
 const TX_STATUSES = ["pending", "success", "failed"];
-const TX_TYPES = ["transfer", "reversal"];
+const TX_TYPES = ["transfer", "reversal", "funding"];
 
 // Only these fields ever leave the API for a user
 const LIST_FIELDS =
@@ -236,7 +236,10 @@ export const listTransactions = async (query: AdminQuery) => {
 // ─── Stats ────────────────────────────────────────────────────────
 export const getStats = async () => {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const successfulTransfers = { direction: "debit" as const, status: "success" as const };
+  const successfulTransfers = {
+    direction: "debit" as const,
+    status: "success" as const,
+  };
 
   const [
     totalUsers,

@@ -46,7 +46,7 @@ export const unfreezeValidator = [
 export const transactionsValidator = [
   ...paging,
   query("status").optional().isIn(["pending", "success", "failed"]),
-  query("type").optional().isIn(["transfer", "reversal"]),
+  query("type").optional().isIn(["transfer", "reversal", "funding"]),
   query("direction").optional().isIn(["debit", "credit", "all"]),
   query("userId").optional().isMongoId().withMessage("Invalid userId"),
   query("startDate")

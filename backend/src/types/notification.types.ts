@@ -12,6 +12,7 @@ export const NOTIFICATION_TYPES = [
   "account_frozen",
   "account_unfrozen",
   "password_changed",
+  "wallet_funded",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
