@@ -62,6 +62,7 @@ describe("validateEnv", () => {
     NODE_ENV: "production",
     RESEND_API_KEY: "re_x",
     FRONTEND_URL: "https://app.example.com",
+    PAYSTACK_SECRET_KEY: "sk_test_x",
   } as NodeJS.ProcessEnv;
 
   it("accepts a valid development and production configuration", () => {

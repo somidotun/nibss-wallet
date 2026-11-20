@@ -15,7 +15,11 @@ export const validateEnv = (env: NodeJS.ProcessEnv = process.env): string[] => {
   }
 
   if (env.NODE_ENV === "production") {
-    for (const key of ["RESEND_API_KEY", "FRONTEND_URL"]) {
+    for (const key of [
+      "RESEND_API_KEY",
+      "FRONTEND_URL",
+      "PAYSTACK_SECRET_KEY",
+    ]) {
       if (!env[key]) problems.push(`${key} is not set`);
     }
     for (const key of SECRETS) {

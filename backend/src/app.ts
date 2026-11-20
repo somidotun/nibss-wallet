@@ -16,6 +16,8 @@ import feedbackRoutes from "./routes/feedback.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import { rejectUnsafeKeys } from "./middlewares/sanitize.middleware.js";
+import { paystackWebhook } from "./controllers/paystack.controller.js";
+import paystackRoutes from "./routes/paystack.routes.js";
 
 const app: Application = express();
 
@@ -28,6 +30,13 @@ app.use(
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true, // allows cookies to be sent
   }),
+);
+
+// Raw body for the webhook, so the signature can be checked
+app.post(
+  "/api/v1/paystack/webhook",
+  express.raw({ type: "application/json", limit: "100kb" }),
+  paystackWebhook,
 );
 
 // Parse incoming JSON requests
@@ -63,6 +72,7 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/onboarding", onboardingRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/paystack", paystackRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {

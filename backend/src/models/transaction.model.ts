@@ -11,7 +11,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     type: {
       type: String,
-      enum: ["transfer", "reversal"],
+      enum: ["transfer", "reversal", "funding"],
       required: true,
     },
     status: {

@@ -10,6 +10,8 @@ Object.assign(process.env, {
   ENCRYPTION_KEY: "test-encryption-key-for-jest-only",
   RESEND_API_KEY: "re_test_key",
   FROM_EMAIL: "onboarding@resend.dev",
+  PAYSTACK_SECRET_KEY: "sk_test_jest_secret",
+  FRONTEND_URL: "http://localhost:3000",
 });
 
 let replSet: MongoMemoryReplSet;

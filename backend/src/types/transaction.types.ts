@@ -1,6 +1,6 @@
 import { Document, Types } from "mongoose";
 
-export type TransactionType = "transfer" | "reversal";
+export type TransactionType = "transfer" | "reversal" | "funding";
 export type TransactionStatus = "pending" | "success" | "failed";
 export type TransactionDirection = "debit" | "credit";
 
