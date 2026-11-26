@@ -120,4 +120,17 @@ describe("validateEnv", () => {
       validateEnv({ ...base, PAYSTACK_SECRET_KEY: "sk_test_abc" }),
     ).toEqual([]);
   });
+
+  it("checks the AI provider settings", () => {
+    expect(validateEnv({ ...base, AI_PROVIDER: "gemini" }).join()).toContain(
+      "GEMINI_API_KEY",
+    );
+    expect(validateEnv({ ...base, AI_PROVIDER: "openai" }).join()).toContain(
+      "AI_PROVIDER must be",
+    );
+    expect(
+      validateEnv({ ...base, AI_PROVIDER: "gemini", GEMINI_API_KEY: "k" }),
+    ).toEqual([]);
+    expect(validateEnv({ ...base, AI_PROVIDER: "none" })).toEqual([]);
+  });
 });

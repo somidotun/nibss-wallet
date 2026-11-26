@@ -1,6 +1,48 @@
 # NIBSS Wallet Backend Architecture
 
-This document provides a comprehensive overview of the `backend` folder structure, explaining the purpose of each directory and file, and describing how they work together to form the NIBSS Wallet API.
+This document provides a comprehensive overview of the `backend` architecture, all features implemented so far, the directory layout, API endpoints, and security/testing setup for the NIBSS Wallet API.
+
+---
+
+## ✅ What Has Been Built So Far
+
+### 1. Authentication, Email Verification & Password Reset
+- **Registration & Login:** User registration with duplicate email/phone checks, automatic NGN wallet provisioning (with a unique 10-digit account number), bcrypt password hashing, and JWT access + refresh token pairs.
+- **Email Verification:** 6-digit OTP generation and email delivery via Resend (`verify-email`, `resend-otp`).
+- **Password Reset & Session Invalidation:** `forgot-password` and `reset-password` flows using hashed reset tokens, attempt tracking, and `passwordChangedAt` checks in auth middleware to invalidate older JWTs.
+
+### 2. User Profile, Onboarding & Transaction PIN
+- **Profile Management:** View and update profile details (`GET /users/me`, `PATCH /users/me`) and change passwords (`PATCH /users/me/change-password`).
+- **Transaction PIN:** Set and verify 4-digit transaction PINs (`POST /users/me/set-pin`), stored hashed via `bcryptjs`.
+- **Onboarding Tracking:** Dedicated onboarding status endpoint (`GET /onboarding/status`) tracking `profile`, `kyc`, and `pin` steps and automatically syncing `isComplete`.
+
+### 3. Wallets, P2P Transfers & PDF Receipts
+- **Wallet Operations:** Fetch wallet details, check balances, and look up recipient accounts by 10-digit account number (`GET /wallet`, `GET /wallet/balance`, `GET /wallet/lookup/:accountNumber`).
+- **Transfers & Idempotency:** Atomic wallet-to-wallet transfers with PIN verification, daily transfer limit enforcement (Tier 1: ₦50,000), and sender-scoped idempotency keys to prevent duplicate debits.
+- **Receipts:** Downloadable PDF transaction receipts generated with `pdfkit` (`GET /wallet/transactions/:id/receipt`).
+
+### 4. Paystack Test-Mode Wallet Funding
+- **Initialize Funding:** `POST /wallet/fund` creates a `pending` deposit record and initializes a Paystack checkout session (`sk_test_` only — live Paystack keys are blocked by env validation).
+- **Signed Webhook:** `POST /api/v1/paystack/webhook` captures the raw request body before JSON parsing, verifies the `x-paystack-signature` HMAC-SHA512 header, re-verifies with Paystack, and credits the wallet idempotently.
+- **Manual Verification:** `GET /api/v1/paystack/verify/:reference` allows authenticated users to verify and settle pending deposits.
+
+### 5. Transaction History & Notifications
+- **Transactions:** Paginated transaction history and single-transaction detail lookup (`GET /transactions`, `GET /transactions/:id`) covering `transfer`, `reversal`, and `funding` types.
+- **Notifications:** Automated alerts for transfers, funding, KYC updates, and security events, with endpoints to list, mark read, mark all read, and delete notifications.
+
+### 6. KYC Verification
+- **KYC Submission & Status:** Submit NIN/BVN details (`POST /kyc/submit`) and check verification status (`GET /kyc/status`).
+- **Data Protection:** NIN and BVN values are encrypted at rest using **AES-256-GCM** and masked when returned to clients.
+
+### 7. Feedback & Admin Management
+- **Feedback:** Users can submit and view their own feedback (`POST /feedback`, `GET /feedback/mine`); admins can list, update, and delete feedback.
+- **Admin Console (`/api/v1/admin`):** Role-gated (`restrictTo("admin")`) endpoints for listing/inspecting users, freezing/unfreezing accounts, viewing user wallets and platform transactions, platform stats, reviewing pending KYC requests, and querying admin audit logs (`AuditLog`).
+- **Admin Seeding:** `src/scripts/seedAdmin.ts` for bootstrapping an admin account from environment variables.
+
+### 8. Security Hardening, Validation & Testing
+- **Middleware Hardening:** `helmet`, `cors`, `cookie-parser`, `express.json({ limit: "10kb" })`, `rejectUnsafeKeys` (NoSQL/prototype-pollution key sanitization), `express-validator` schemas, and tiered rate limiters (`globalLimiter`, `loginLimiter`, `registerLimiter`, `otpLimiter`, `transferLimiter`, `fundLimiter`).
+- **Environment Validation:** `src/config/env.ts` validates required secrets at startup and enforces production secret length/placeholder checks.
+- **Automated Test Suite:** 20+ Jest + Supertest integration and unit test suites running against `mongodb-memory-server`.
 
 ---
 
@@ -12,219 +54,134 @@ backend/
 │   ├── .env               # Local environment secrets (ignored by git)
 │   ├── .env.example       # Template for required environment variables
 │   ├── eslint.config.js   # ESLint code quality rules & parser configuration
+│   ├── jest.config.mjs    # Jest configuration for ESM + TypeScript tests
 │   ├── nodemon.json       # Hot-reload configuration for development
 │   ├── package.json       # Project dependencies and running scripts
-│   └── tsconfig.json      # TypeScript compiler configurations (ESNext, paths)
+│   └── tsconfig.json      # TypeScript compiler configuration (NodeNext, strict)
 │
 └── 🛠️ src/ (Source Code)
-    ├── server.ts          # Application entry point & server bootstrapper
-    ├── app.ts             # Express application initialization & middleware setup
+    ├── server.ts          # Application entry point, env validation & server bootstrapper
+    ├── app.ts             # Express app setup, webhook raw-body route, security & API routers
     │
     ├── 📁 config/
-    │   └── database.ts    # Mongoose MongoDB connection
+    │   ├── database.ts    # Mongoose MongoDB connection
+    │   └── env.ts         # Startup environment variable & secret validation
     │
     ├── 📁 models/
-    │   ├── user.model.ts  # User schema, pre-save hooks (hashing, encryption), instance methods
-    │   └── wallet.model.ts# Wallet schema with balance, currency & daily limit tracking
+    │   ├── auditLog.model.ts     # Admin action audit trail schema
+    │   ├── deposit.model.ts      # Paystack funding deposit schema
+    │   ├── feedback.model.ts     # User feedback schema
+    │   ├── notification.model.ts # In-app notification schema
+    │   ├── transaction.model.ts  # Transfer, reversal & funding ledger schema
+    │   ├── user.model.ts         # User schema, pre-save hashing/encryption & instance methods
+    │   └── wallet.model.ts       # NGN wallet schema, account number & daily limit tracking
     │
     ├── 📁 types/
-    │   ├── user.types.ts  # IUser interface & related types
-    │   └── wallet.types.ts# IWallet interface & related types
+    │   ├── audit.types.ts        # Audit log types
+    │   ├── deposit.types.ts      # Deposit status & interface types
+    │   ├── feedback.types.ts     # Feedback types
+    │   ├── notification.types.ts # Notification types
+    │   ├── transaction.types.ts  # Transaction types
+    │   ├── user.types.ts         # IUser, IKyc, IOnboarding & related types
+    │   └── wallet.types.ts       # IWallet & related types
     │
     ├── 📁 utils/
-    │   ├── AppError.ts         # Custom operational error class
-    │   ├── encryption.utils.ts # AES-256-GCM encrypt/decrypt helpers
-    │   └── jwt.utils.ts        # Token generation & verification
+    │   ├── accountNumber.utils.ts # Unique 10-digit NUBAN-style account number generator
+    │   ├── AppError.ts            # Custom operational error class
+    │   ├── catchAsync.ts          # Async controller error wrapper
+    │   ├── email.utils.ts         # Resend email helpers (OTP, password reset)
+    │   ├── encryption.utils.ts    # AES-256-GCM encrypt/decrypt helpers for NIN & BVN
+    │   ├── jwt.utils.ts           # Access & refresh token generation/verification
+    │   ├── otp.utils.ts           # OTP & reset token generation/hashing helpers
+    │   ├── pagination.ts          # Shared pagination query helper
+    │   └── receipt.utils.ts       # PDFKit transaction receipt generator
     │
     ├── 📁 services/
-    │   ├── auth.service.ts    # Register, login, refresh token logic
-    │   ├── user.service.ts    # Get profile, update profile, change password
-    │   └── wallet.service.ts  # Get wallet, get balance, daily limit check
+    │   ├── admin.service.ts        # Admin user, wallet, KYC review, stats & audit log logic
+    │   ├── auth.service.ts         # Register, login, refresh, OTP verification & password reset
+    │   ├── feedback.service.ts     # Feedback creation, listing, update & deletion
+    │   ├── funding.service.ts      # Paystack funding initialization, webhook & verify settlement
+    │   ├── kyc.service.ts          # KYC submission & status retrieval
+    │   ├── notification.service.ts # Notification creation, read/delete operations
+    │   ├── onboarding.service.ts   # Onboarding step status & completion sync
+    │   ├── paystack.client.ts      # Paystack HTTP client & webhook signature verification
+    │   ├── transaction.service.ts  # Paginated transaction history & detail queries
+    │   ├── transfer.service.ts     # Atomic P2P transfers, idempotency & daily limits
+    │   ├── user.service.ts         # Profile retrieval/update, password change & PIN setup
+    │   └── wallet.service.ts       # Wallet retrieval, balance, account lookup & limit checks
     │
-    ├── 📁 controllers/
-    │   ├── auth.controller.ts    # Handles /auth/* HTTP requests
-    │   ├── user.controller.ts    # Handles /users/* HTTP requests
-    │   └── wallet.controller.ts  # Handles /wallet/* HTTP requests
-    │
+    ├── 📁 controllers/             # HTTP request/response handlers for each domain
     ├── 📁 middlewares/
-    │   ├── auth.middleware.ts     # JWT protect guard
-    │   ├── error.middleware.ts    # Global error handler
-    │   ├── validate.middleware.ts # express-validator result runner
-    │   └── validators/
-    │       ├── auth.validator.ts  # register & login validation rules
-    │       └── user.validator.ts  # updateProfile & changePassword rules
+    │   ├── auth.middleware.ts      # `protect` JWT guard & `restrictTo` role guard
+    │   ├── error.middleware.ts     # Global Express error formatter
+    │   ├── rateLimit.middleware.ts # Global, login, register, OTP & transfer rate limiters
+    │   ├── sanitize.middleware.ts  # `rejectUnsafeKeys` against `$` / `__proto__` injection
+    │   ├── validate.middleware.ts  # express-validator result checker
+    │   └── validators/             # Request validation chains (admin, auth, feedback, funding, kyc, transfer, user)
     │
-    ├── 📁 routes/
-    │   ├── auth.routes.ts    # POST /auth/register|login|logout|refresh-token
-    │   ├── user.routes.ts    # GET|PATCH /users/me, PATCH /users/me/change-password
-    │   └── wallet.routes.ts  # GET /wallet, GET /wallet/balance
+    ├── 📁 routes/                  # Express routers + `rateLimit.middleware.ts` (`fundLimiter`)
+    ├── 📁 scripts/
+    │   └── seedAdmin.ts            # CLI script to seed an admin user
     │
-    └── 📁 __tests__/
-        ├── auth.test.ts  # Auth integration tests (register, login, refresh)
-        └── setup.ts      # MongoDB Memory Server setup & teardown
+    └── 📁 __tests__/               # Jest + Supertest unit & integration test suites
+        ├── setup.ts                # MongoDB Memory Server setup & teardown
+        ├── helpers.ts              # Shared test user & auth helpers
+        └── *.test.ts               # Suites for auth, password-reset, user, onboarding, wallet, transfer,
+                                    # funding, transaction, kyc, notification, feedback, admin,
+                                    # ratelimit, security, encryption, jwt, middleware, utils & app
 ```
 
 ---
 
-## 🔍 File-by-File Breakdown
+## ⚙️ Scripts & Environment Variables
 
-### ⚙️ Root Configuration Files
+### Key NPM Scripts (`backend/package.json`)
+- `npm run dev`: Runs the server in development mode with `nodemon` + `tsx`.
+- `npm run build`: Compiles TypeScript to JavaScript in `dist/`.
+- `npm start`: Runs the compiled production server (`node dist/server.js`).
+- `npm run type-check`: Validates TypeScript types (`tsc --noEmit`).
+- `npm run lint` / `npm run lint:fix`: Checks/fixes code style and lint rules with ESLint.
+- `npm test` / `npm run test:watch` / `npm run test:coverage`: Runs Jest unit & integration tests.
 
-- **`package.json`**
-  - **How it works:** Defines project metadata, third-party libraries (dependencies), and NPM scripts.
-  - **Key scripts:**
-    - `npm run dev`: Uses `nodemon` + `tsx` to run the server in development mode with hot-reloading.
-    - `npm run build`: Compiles TypeScript files (`.ts`) into standard JavaScript (`.js`) inside a `/dist` folder.
-    - `npm run type-check`: Validates type safety by running the compiler without writing files (`tsc --noEmit`).
-    - `npm run lint`: Analyzes the source code for styling and syntax violations using ESLint.
-    - `npm test`: Runs Jest integration tests.
-
-- **`tsconfig.json`**
-  - **How it works:** Instructs the TypeScript compiler (`tsc`) on how to compile type-safe code into JavaScript. It configures compilation targets (ES2022/ESNext), source directories, strict typechecking flags, and module resolution rules (`NodeNext`).
-
-- **`nodemon.json`**
-  - **How it works:** Configures Nodemon to monitor file changes. It specifies that it should watch the `src` folder and execute TS files directly via `tsx` (TypeScript Execute) whenever a change is saved.
-
-- **`eslint.config.js`**
-  - **How it works:** Defines syntax and style-checking rules (using TypeScript ESLint plugin) to ensure consistent code patterns and block bug-prone syntax across the development team.
-
-- **`.env` & `.env.example`**
-  - **How it works:** Stores runtime secrets (database connection strings, encryption keys, JWT secrets). `.env` contains local secrets and is never committed to Git. `.env.example` is committed to show future developers which keys must be created.
-  - **Required keys:** `MONGO_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`, `ENCRYPTION_KEY`, `FRONTEND_URL`
+### Environment Variables (`.env.example`)
+- **Required:** `MONGO_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `ENCRYPTION_KEY`
+- **Server & URLs:** `PORT`, `NODE_ENV`, `FRONTEND_URL`, `RAILWAY_URL`
+- **JWT Expiry:** `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN`
+- **Email (Resend):** `RESEND_API_KEY`, `FROM_EMAIL`
+- **Paystack (Test Mode Only):** `PAYSTACK_SECRET_KEY` (must not start with `sk_live_`), `PAYSTACK_BASE_URL`, `TEST_SECRET_KEY`, `TEST_PUBLIC_KEY`
+- **Admin Seeding:** `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_PHONE`
 
 ---
 
-### 🛠️ Src/ (Source Code)
-
-#### 🚀 Entry Points
-
-- **[server.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/server.ts)**
-  - **How it works:** The absolute starting point of the application. It loads environment variables (`dotenv.config()`), initializes the MongoDB connection, and starts the Express server listening on a specified port (default: `5000`).
-
-- **[app.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/app.ts)**
-  - **How it works:** Configures the Express framework. Sets up security headers (`helmet`), enables cross-origin resource sharing (`cors`), parses incoming JSON/URL-encoded payloads, logs incoming HTTP requests (`morgan`), and registers global router endpoints (`/api/v1/auth`, `/api/v1/users`, `/api/v1/wallet`).
-
----
-
-#### 🗄️ Database & Models
-
-- **[config/database.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/config/database.ts)**
-  - **How it works:** Uses `mongoose` to create a connection to the MongoDB cluster specified by `MONGO_URI`. If the connection fails, the process is terminated safely.
-
-- **[models/user.model.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/models/user.model.ts)**
-  - **How it works:** Defines the schema and validators for User accounts. It houses critical document-lifecycle triggers (Mongoose pre-save hooks) and model instance methods:
-    - _Pre-save triggers:_ Automatically hashes user passwords and transaction PINs using `bcryptjs`. Encrypts sensitive fields (NIN & BVN) before they are written to the database.
-    - _Instance methods:_ `comparePassword()` and `comparePin()` safely evaluate candidate credentials against hashed values. `getMaskedNin()` and `getMaskedBvn()` decrypt and return masked outputs (e.g. `*******4829`) to protect user identity.
-
-- **[models/wallet.model.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/models/wallet.model.ts)**
-  - **How it works:** Defines the schema for a user's NGN wallet. Tracks balance, wallet status (`active` | `frozen` | `suspended`), daily transfer limit (Tier 1: ₦50,000), daily transfer used, and last reset date. One wallet per user enforced via a unique index on `userId`.
-
----
-
-#### 💡 Utilities
-
-- **[utils/AppError.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/utils/AppError.ts)**
-  - **How it works:** A custom error class that extends `Error`. Adds a `statusCode` and `isOperational` flag so the global error handler can distinguish between known operational errors (e.g. 404 Not Found) and unexpected programming errors.
-
-- **[utils/encryption.utils.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/utils/encryption.utils.ts)**
-  - **How it works:** Provides cryptographic helpers for data at rest. Uses Node's `crypto` module with **AES-256-GCM** (authenticated encryption with 12-byte IVs and 16-byte auth tags) to safely encrypt and decrypt sensitive fields like BVN and NIN.
-
-- **[utils/jwt.utils.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/utils/jwt.utils.ts)**
-  - **How it works:** Manages all JSON Web Token operations. Exposes:
-    - `generateAccessToken()` — short-lived token (default: 15 minutes) signed with `JWT_ACCESS_SECRET`.
-    - `generateRefreshToken()` — long-lived token (default: 7 days) signed with `JWT_REFRESH_SECRET`.
-    - `generateTokenPair()` — convenience wrapper that returns both tokens at once.
-    - `verifyAccessToken()` — validates and decodes an access token; throws if expired or tampered.
-    - `verifyRefreshToken()` — validates and decodes a refresh token; throws if expired or tampered.
-
----
-
-#### 🧠 Services
-
-- **[services/auth.service.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/services/auth.service.ts)**
-  - **How it works:** Contains the core authentication business logic:
-    - `registerUser(input)` — checks for duplicate email/phone, creates the user, auto-provisions a wallet (NGN, ₦1,000,000 starting balance, ₦50,000 daily limit), and returns a JWT token pair.
-    - `loginUser(input)` — fetches the user by email, verifies account status, validates the password via `comparePassword()`, updates `lastLogin`, and returns a JWT token pair.
-    - `refreshUserToken(refreshToken)` — **verifies the refresh token cryptographically** first (throws if expired/invalid), looks up the user from the decoded payload, checks account status, and issues a fresh token pair.
-
-- **[services/user.service.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/services/user.service.ts)**
-  - **How it works:** Handles user profile operations:
-    - `getCurrentUser(userId)` — fetches the authenticated user by ID.
-    - `updateProfile(userId, input)` — updates name/phone (with duplicate phone check), marks the `profile` step in onboarding as complete.
-    - `changePassword(userId, input)` — verifies the current password, prevents reusing the same password, and updates it (auto-re-hashed by pre-save hook).
-
-- **[services/wallet.service.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/services/wallet.service.ts)**
-  - **How it works:** Handles wallet operations:
-    - `getWallet(userId)` — returns the full wallet document.
-    - `getWalletBalance(userId)` — returns balance, currency, status, and daily limit info (only for active wallets).
-    - `checkDailyLimit(userId, amount)` — resets `dailyTransferUsed` on a new calendar day, then throws if the requested transfer would exceed the daily limit.
-
----
-
-#### 🎮 Controllers
-
-- **[controllers/auth.controller.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/controllers/auth.controller.ts)** — Handles `register`, `login`, `logout`, and `refreshToken` HTTP actions.
-- **[controllers/user.controller.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/controllers/user.controller.ts)** — Handles `getMe`, `updateMe`, and `updatePassword` HTTP actions.
-- **[controllers/wallet.controller.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/controllers/wallet.controller.ts)** — Handles `getMyWallet` and `getBalance` HTTP actions.
-
----
-
-#### 🛡️ Middlewares
-
-- **[middlewares/auth.middleware.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/middlewares/auth.middleware.ts)**
-  - **How it works:** `protect` middleware extracts and verifies the access token (from cookie or `Authorization` header), attaches the decoded user to `req.user`, and gates all protected routes.
-
-- **[middlewares/error.middleware.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/middlewares/error.middleware.ts)**
-  - **How it works:** Global Express error handler. Distinguishes between operational `AppError` instances and unexpected errors, formats consistent JSON error responses, and masks internal errors in production.
-
-- **[middlewares/validate.middleware.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/middlewares/validate.middleware.ts)**
-  - **How it works:** Reads validation results from `express-validator` and short-circuits with a `422 Unprocessable Entity` response if any field fails validation.
-
-- **[middlewares/validators/auth.validator.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/middlewares/validators/auth.validator.ts)** — Validation chains for `register` (firstName, lastName, email, phone, password) and `login` (email, password).
-- **[middlewares/validators/user.validator.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/middlewares/validators/user.validator.ts)** — Validation chains for `updateProfile` and `changePassword`.
-
----
-
-#### 📍 Routes
+## 📍 API Endpoints
 
 | Router | Prefix | Endpoints |
 |--------|--------|-----------|
-| `auth.routes.ts` | `/api/v1/auth` | `POST /register`, `POST /login`, `POST /logout`, `POST /refresh-token` |
-| `user.routes.ts` | `/api/v1/users` | `GET /me`, `PATCH /me`, `PATCH /me/change-password` |
-| `wallet.routes.ts` | `/api/v1/wallet` | `GET /`, `GET /balance` |
-
----
-
-#### 🧪 Tests
-
-- **[__tests__/auth.test.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/__tests__/auth.test.ts)**
-  - Integration tests for the auth flow using Supertest. Covers: successful registration (with wallet provisioning), duplicate email/phone rejection, successful login, invalid credential handling, and token refresh.
-
-- **[__tests__/setup.ts](file:///c:/Users/SMD/Documents/GitHub/nibss-wallet/backend/src/__tests__/setup.ts)**
-  - Starts an in-memory MongoDB server before all tests and tears it down afterwards — no external database required.
+| `app.ts` | `/api` | `GET /health` |
+| `app.ts` | `/api/v1/paystack` | `POST /webhook` (raw JSON body + signature verification) |
+| `paystack.routes.ts` | `/api/v1/paystack` | `GET /verify/:reference` |
+| `auth.routes.ts` | `/api/v1/auth` | `POST /register`, `POST /login`, `POST /logout`, `POST /refresh-token`, `POST /verify-email`, `POST /resend-otp`, `POST /forgot-password`, `POST /reset-password` |
+| `user.routes.ts` | `/api/v1/users` | `GET /me`, `PATCH /me`, `PATCH /me/change-password`, `POST /me/set-pin` |
+| `onboarding.routes.ts` | `/api/v1/onboarding` | `GET /status` |
+| `wallet.routes.ts` | `/api/v1/wallet` | `GET /`, `GET /balance`, `GET /lookup/:accountNumber`, `POST /fund`, `POST /transfer`, `GET /transactions/:id/receipt` |
+| `transaction.routes.ts` | `/api/v1/transactions` | `GET /`, `GET /:id` |
+| `kyc.routes.ts` | `/api/v1/kyc` | `POST /submit`, `GET /status` |
+| `notification.routes.ts` | `/api/v1/notifications` | `GET /`, `PATCH /read-all`, `PATCH /:id/read`, `DELETE /:id` |
+| `feedback.routes.ts` | `/api/v1/feedback` | `POST /`, `GET /mine`, `GET /` (admin), `PATCH /:id` (admin), `DELETE /:id` (admin) |
+| `admin.routes.ts` | `/api/v1/admin` | `GET /users`, `GET /users/:id`, `PATCH /users/:id/freeze`, `PATCH /users/:id/unfreeze`, `GET /wallets/:userId`, `GET /transactions`, `GET /stats`, `GET /kyc/pending`, `PATCH /kyc/:id`, `GET /audit-logs` |
 
 ---
 
 ## 🌊 Request Lifecycle Flow
 
-When a client hits an endpoint (e.g. logging in), the data flows through the application in the following order:
-
 ```mermaid
 graph TD
-    Client[📱 Client App] -->|HTTPS Request| Express[🚀 app.ts / server.ts]
-    Express -->|Route Matching| Router[📍 src/routes/]
-    Router -->|Check Auth / Validate Data| Middleware[🛡️ src/middlewares/]
-    Middleware -->|Process Request| Controller[🎮 src/controllers/]
-    Controller -->|Core Business Rules| Service[🧠 src/services/]
-    Service -->|Interact with DB / Encrypt / Hash| Model[🗄️ src/models/]
-    Service -->|Sign / Verify Tokens| JWT[🔑 src/utils/jwt.utils.ts]
-    Model -->|Query/Write| MongoDB[(🍃 MongoDB Database)]
+    Client[📱 Client App] -->|HTTPS Request| Express[🚀 server.ts / app.ts]
+    Express -->|Security, Rate Limit & Sanitization| Router[📍 src/routes/]
+    Router -->|Auth, Role Guard & Validation| Middleware[🛡️ src/middlewares/]
+    Middleware -->|Handle Request| Controller[🎮 src/controllers/]
+    Controller -->|Business Logic| Service[🧠 src/services/]
+    Service -->|Query / Encrypt / Hash| Model[🗄️ src/models/]
+    Service -->|Tokens / Email / Paystack / PDF| Utils[🔑 src/utils/ & clients]
+    Model -->|Read / Write| MongoDB[(🍃 MongoDB Database)]
 ```
-
-1. **Incoming Request:** The client makes an HTTPS call to the backend.
-2. **Server Initialization:** `server.ts` routes the request through configured middleware in `app.ts`.
-3. **Routing & Middleware:** The request matches a path in `routes/`. Before hitting the controller, it passes through `middlewares/` for auth verification and input validation.
-4. **Controller:** Maps the request payload and delegates to the `services/` layer.
-5. **Service:** Executes business logic — credential checks, token generation via `jwt.utils.ts`, and interaction with the `models/` layer.
-6. **Database Operations:** The model triggers pre-save hooks (encrypting NIN/BVN, hashing passwords/PINs) and writes securely to MongoDB.
-7. **Response:** The result flows back up to the controller which sends the structured response to the client.

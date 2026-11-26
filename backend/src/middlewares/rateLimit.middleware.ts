@@ -61,3 +61,10 @@ export const transferLimiter = createLimiter({
   keyGenerator: (req) => req.user?.userId ?? "anonymous",
   message: "Too many transfer attempts. Please slow down.",
 });
+
+export const aiLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  limit: 20,
+  keyGenerator: (req) => req.user?.userId ?? "anonymous",
+  message: "Too many AI requests. Please slow down.",
+});

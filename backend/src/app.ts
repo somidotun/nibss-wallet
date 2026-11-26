@@ -18,6 +18,7 @@ import { globalLimiter } from "./middlewares/rateLimit.middleware.js";
 import { rejectUnsafeKeys } from "./middlewares/sanitize.middleware.js";
 import { paystackWebhook } from "./controllers/paystack.controller.js";
 import paystackRoutes from "./routes/paystack.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 const app: Application = express();
 
@@ -73,6 +74,7 @@ app.use("/api/v1/onboarding", onboardingRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/paystack", paystackRoutes);
+app.use("/api/v1/ai", aiRoutes);
 
 // 404 handler — catches all unmatched routes (must be after all routes)
 app.all("/{*path}", (req: Request, res: Response, next: NextFunction) => {
