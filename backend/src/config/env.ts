@@ -45,6 +45,14 @@ export const validateEnv = (env: NodeJS.ProcessEnv = process.env): string[] => {
     );
   }
 
+  const aiProvider = (env.AI_PROVIDER ?? "none").toLowerCase();
+  if (!["none", "gemini"].includes(aiProvider)) {
+    problems.push("AI_PROVIDER must be none or gemini");
+  }
+  if (aiProvider === "gemini" && !env.GEMINI_API_KEY) {
+    problems.push("GEMINI_API_KEY is required when AI_PROVIDER=gemini");
+  }
+
   return problems;
 };
 
