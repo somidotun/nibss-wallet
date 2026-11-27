@@ -6,11 +6,21 @@ const config = {
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
+  transformIgnorePatterns: [
+    "[/\\\\]node_modules[/\\\\](?!@apidevtools[/\\\\]json-schema-ref-parser)",
+  ],
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
         useESM: true,
+      },
+    ],
+    "[/\\\\]@apidevtools[/\\\\]json-schema-ref-parser[/\\\\].+\\.js$": [
+      "ts-jest",
+      {
+        useESM: false,
+        tsconfig: { allowJs: true, module: "commonjs" },
       },
     ],
   },

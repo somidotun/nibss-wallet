@@ -19,6 +19,7 @@ import { rejectUnsafeKeys } from "./middlewares/sanitize.middleware.js";
 import { paystackWebhook } from "./controllers/paystack.controller.js";
 import paystackRoutes from "./routes/paystack.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import docsRoutes from "./routes/docs.routes.js";
 
 const app: Application = express();
 
@@ -62,6 +63,7 @@ app.get("/api/health", (req: Request, res: Response) => {
 });
 
 app.use("/api/v1", globalLimiter);
+app.use("/api/docs", docsRoutes);
 
 // ─── API Routes ──────────────────────────────────────────────────
 app.use("/api/v1/auth", authRoutes);
